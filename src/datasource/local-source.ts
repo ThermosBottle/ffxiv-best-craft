@@ -41,6 +41,7 @@ export class LocalRecipeSource {
         craftTypeId?: number,
         jobLevelMin?: number,
         jobLevelMax?: number,
+        pageSize?: number,
     ): Promise<RecipesSourceResult> {
         if (searchName === undefined) {
             searchName = '';
@@ -54,6 +55,7 @@ export class LocalRecipeSource {
             recipeLevel: rlv,
             jobLevelMin,
             jobLevelMax,
+            pageSize,
         });
         return { results, totalPages };
     }
@@ -71,6 +73,10 @@ export class LocalRecipeSource {
         return await (
             await this.invoke
         )('recipe_collectability', { recipeId });
+    }
+
+    async recipeInfo(recipeId: number): Promise<RecipeInfo> {
+        return await (await this.invoke)('recipe_info', { recipeId });
     }
 
     async recipeLevelTable(rlv: number): Promise<RecipeLevel> {

@@ -1,4 +1,4 @@
-<!-- 
+<!--
     This file is part of BestCraft.
     Copyright (C) 2026  Tnze
 
@@ -32,6 +32,7 @@ import {
     ElInputNumber,
     ElMessageBox,
 } from 'element-plus';
+import type { TableColumnCtx } from 'element-plus';
 import { EditPen } from '@element-plus/icons-vue';
 import {
     CollectablesShopRefine,
@@ -51,6 +52,8 @@ import {
 import useSettingsStore from '@/stores/settings';
 import { useMediaQuery } from '@vueuse/core';
 import ConfirmDialog from './ConfirmDialog.vue';
+import { Star, StarFilled } from '@element-plus/icons-vue';
+import useRecipeFavoritesStore from '@/stores/recipe-favorites';
 
 const emit = defineEmits<{
     (e: 'setTitle', title: string): void;
@@ -75,6 +78,84 @@ const filterLevel = ref<number>();
 const craftTypeOptions = ref<CraftType[]>([]);
 const filterRecipeLevel = ref<number>();
 const stellarSteadyHandCount = ref<number>(0);
+
+const recipeFavoritesStore = useRecipeFavoritesStore();
+
+// 仅在第一页且没有搜索内容时才置顶收藏配方
+function shouldPinFavorites(
+    pageNumber = pagination.Page,
+    searching = searchText.value,
+): boolean {
+    return pageNumber === 1 && searching.trim() === '';
+}
+
+function mergePinnedFavorites(
+    pinned: RecipeInfo[],
+    results: RecipeInfo[],
+): RecipeInfo[] {
+    const seen = new Set<number>();
+    const merged: RecipeInfo[] = [];
+    for (const row of pinned) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        merged.push(row);
+    }
+
+    for (const row of results) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        merged.push(row);
+    }
+    return merged;
+}
+
+//加载置顶收藏配方
+async function loadPinnedFavoriteRecipes(source: DataSource) {
+    if (source.recipeInfo == undefined) return [] as RecipeInfo[];
+    const recipeIds = recipeFavoritesStore.recipes;
+    if (recipeIds.length == 0) return [] as RecipeInfo[];
+    const selectedCraftTypeName =
+        filterCraftType.value == undefined
+            ? undefined
+            : craftTypeOptions.value.find(v => v.id == filterCraftType.value)
+                  ?.name;
+    const selectedLevelRange =
+        filterLevel.value == undefined
+            ? undefined
+            : {
+                  min: filterLevel.value * 10 - 9,
+                  max: filterLevel.value * 10,
+              };
+    const pinned = await Promise.all(
+        recipeIds.map(async recipeId => {
+            try {
+                const recipe = await source.recipeInfo!(recipeId);
+                if (
+                    selectedCraftTypeName != undefined &&
+                    recipe.job != selectedCraftTypeName
+                ) {
+                    return undefined;
+                }
+                if (selectedLevelRange != undefined) {
+                    const recipeLevel = await source.recipeLevelTable(
+                        recipe.rlv,
+                    );
+                    if (
+                        recipeLevel.class_job_level < selectedLevelRange.min ||
+                        recipeLevel.class_job_level > selectedLevelRange.max
+                    ) {
+                        return undefined;
+                    }
+                }
+                return recipe;
+            } catch (err) {
+                console.error(err);
+                return undefined;
+            }
+        }),
+    );
+    return pinned.filter((v): v is RecipeInfo => v !== undefined);
+}
 
 async function craftTypeRemoteMethod() {
     const source = await settingStore.getDataSource();
@@ -102,11 +183,21 @@ async function updateRecipePage(
             filterCraftType.value,
             filterLevel.value ? filterLevel.value * 10 - 9 : undefined,
             filterLevel.value ? filterLevel.value * 10 : undefined,
+            settingStore.recipeTablePageSize,
         );
+        // 锁
         loadRecipeTableResult = promise;
         let { results, totalPages } = await promise;
         if (loadRecipeTableResult == promise) {
-            displayTable.value = results;
+            console.log(
+                `${filterCraftType.value} ${filterLevel.value} ${filterRecipeLevel.value}`,
+            );
+            if (shouldPinFavorites(pageNumber, searching)) {
+                const pinned = await loadPinnedFavoriteRecipes(dataSource);
+                displayTable.value = mergePinnedFavorites(pinned, results);
+            } else {
+                displayTable.value = results;
+            }
             pagination.PageTotal = totalPages;
             loadRecipeTableResult = null;
         }
@@ -151,10 +242,9 @@ watch(
 // 回车手动更新
 async function triggerSearch() {
     const source = await settingStore.getDataSource();
-    const pageNumber = pagination.Page;
     const searching = searchText.value;
     pagination.Page = 1; // 触发搜索时应该翻回第一页，否则搜不到东西
-    await updateRecipePage(source, pageNumber, searching);
+    await updateRecipePage(source, 1, searching);
 }
 
 // 页面载入后更新
@@ -172,6 +262,24 @@ watch(
     },
 );
 
+watch(
+    () => settingStore.recipeTablePageSize,
+    () => {
+        triggerSearch();
+    },
+);
+
+// 收藏配方更新时刷新当前页
+watch(
+    () => recipeFavoritesStore.recipes.slice(),
+    async () => {
+        if (shouldPinFavorites()) {
+            const source = await settingStore.getDataSource();
+            await updateRecipePage(source, pagination.Page, searchText.value);
+        }
+    },
+);
+
 // 接受跳转参数
 watchEffect(() => {
     const recipeId = router.currentRoute.value.query.recipeId;
@@ -185,6 +293,18 @@ const recipe = ref<Recipe>();
 const recipeInfo = ref<RecipeInfo>();
 const itemInfo = ref<Item>();
 const collectability = ref<CollectablesShopRefine>();
+
+async function clickRecipeRow(
+    row: RecipeInfo,
+    _column: TableColumnCtx<RecipeInfo> | null,
+    event: PointerEvent,
+) {
+    const target = event.target as HTMLElement;
+    if (target.closest('.favorite-column')) {
+        return;
+    }
+    await selectRecipeRow(row);
+}
 
 async function selectRecipeRow(row: RecipeInfo) {
     try {
@@ -263,6 +383,24 @@ async function selectRecipeById(recipeId: number) {
     }
     await selectRecipeRow(recipeInfo);
 }
+
+function toggleRecipeFavorite(row: RecipeInfo) {
+    recipeFavoritesStore.toggleRecipe(row.id);
+}
+
+async function clearAllFavorites() {
+    if (recipeFavoritesStore.recipes.length === 0) return;
+    try {
+        await ElMessageBox.confirm(
+            $t('clear-all-favorites-confirm'),
+            $t('clear-all-favorites'),
+            { type: 'warning' },
+        );
+    } catch {
+        return;
+    }
+    recipeFavoritesStore.clearRecipes();
+}
 </script>
 
 <template>
@@ -292,61 +430,105 @@ async function selectRecipeById(recipeId: number) {
                 </el-button>
             </template>
         </el-input>
-        <el-form :inline="true">
-            <el-form-item :label="$t('craft-type')">
-                <el-select
-                    v-model="filterCraftType"
-                    clearable
-                    :remote-method="craftTypeRemoteMethod"
-                    style="width: 180px"
-                    @change="triggerSearch"
-                >
-                    <el-option
-                        v-for="{ id, name } in craftTypeOptions"
-                        :key="id"
-                        :value="id"
-                        :label="name"
+        <div
+            style="
+                display: flex;
+                justify-content: space-between;
+                width: 80%;
+                gap: 5%;
+                max-width: 800px;
+            "
+        >
+            <el-button
+                type="primary"
+                class="clear-button"
+                @click="clearAllFavorites"
+            >
+                {{ $t('clear-all-favorites') }}
+            </el-button>
+            <el-form class="select-filters">
+                <el-form-item :label="$t('craft-type')">
+                    <el-select
+                        v-model="filterCraftType"
+                        clearable
+                        :remote-method="craftTypeRemoteMethod"
+                        @change="triggerSearch"
+                    >
+                        <el-option
+                            v-for="{ id, name } in craftTypeOptions"
+                            :key="id"
+                            :value="id"
+                            :label="name"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item :label="$t('level')">
+                    <el-select
+                        v-model="filterLevel"
+                        @change="triggerSearch"
+                        clearable
+                    >
+                        <el-option
+                            v-for="i in 10"
+                            :key="i"
+                            :value="i"
+                            :label="`${i * 10 - 9} ~ ${i * 10}`"
+                        />
+                    </el-select>
+                </el-form-item>
+                <el-form-item :label="$t('recipe-level')">
+                    <el-input-number
+                        v-model="filterRecipeLevel"
+                        clearable
+                        :min="1"
+                        :max="799"
+                        :step="1"
+                        step-strictly
+                        :controls="false"
+                        @change="triggerSearch"
                     />
-                </el-select>
-            </el-form-item>
-            <el-form-item :label="$t('level')">
-                <el-select
-                    v-model="filterLevel"
-                    style="width: 100px"
-                    @change="triggerSearch"
-                    clearable
-                >
-                    <el-option
-                        v-for="i in 10"
-                        :key="i"
-                        :value="i"
-                        :label="`${i * 10 - 9} ~ ${i * 10}`"
-                    />
-                </el-select>
-            </el-form-item>
-            <el-form-item :label="$t('recipe-level')">
-                <el-input-number
-                    v-model="filterRecipeLevel"
-                    style="width: 100px"
-                    clearable
-                    :min="1"
-                    :max="799"
-                    :step="1"
-                    step-strictly
-                    :controls="false"
-                    @change="triggerSearch"
-                />
-            </el-form-item>
-        </el-form>
+                </el-form-item>
+            </el-form>
+        </div>
         <el-table
             v-tnze-loading="isRecipeTableLoading"
             :element-loading-text="$t('please-wait')"
             highlight-current-row
-            @row-click="selectRecipeRow"
+            @row-click="clickRecipeRow"
             :data="displayTable"
             height="100%"
             style="width: 100%"
         >
+            <el-table-column
+                width="56"
+                align="center"
+                class-name="favorite-column"
+            >
+                <template #default="{ row }">
+                    <el-button
+                        rectangle
+                        text
+                        size="small"
+                        style="width: 100%; height: 100%"
+                        :type="
+                            recipeFavoritesStore.hasRecipe(row.id)
+                                ? 'warning'
+                                : 'info'
+                        "
+                        :icon="
+                            recipeFavoritesStore.hasRecipe(row.id)
+                                ? StarFilled
+                                : Star
+                        "
+                        :title="
+                            recipeFavoritesStore.hasRecipe(row.id)
+                                ? $t('unfavorite')
+                                : $t('favorite')
+                        "
+                        @click.stop="toggleRecipeFavorite(row as RecipeInfo)"
+                    />
+                </template>
+            </el-table-column>
             <el-table-column
                 prop="id"
                 label="ID"
@@ -396,6 +578,28 @@ async function selectRecipeById(recipeId: number) {
     justify-content: center;
     /* margin-bottom: 10px; */
     --el-fill-color-blank: transparent;
+}
+
+.select-filters {
+    flex: 1;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 5%;
+}
+
+.clear-button {
+    flex: 0 0 auto;
+}
+
+.select-filters :deep(.el-form-item) {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.select-filters :deep(.el-select),
+.select-filters :deep(.el-input-number) {
+    width: 100%;
 }
 </style>
 

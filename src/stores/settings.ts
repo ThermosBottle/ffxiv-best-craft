@@ -19,6 +19,8 @@ import { DataSource } from '@/datasource/source';
 import { WebSource, YYYYGamesApiBase } from '@/datasource/web-source';
 import { isTauri, isWebsite } from '@/libs/Consts';
 
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from '@/libs/Consts';
+
 export type DataSourceID =
     | 'local'
     | 'yyyy.games'
@@ -50,6 +52,7 @@ export default defineStore('settings', {
         dataSource: dataSourceList.keys().next().value!,
         dataSourceLang: dataSourceList.values().next().value?.values().next()
             .value,
+        recipeTablePageSize: DEFAULT_PAGE_SIZE,
     }),
     getters: {
         toJson(): string {
@@ -57,6 +60,7 @@ export default defineStore('settings', {
                 language: this.language,
                 dataSource: this.dataSource,
                 dataSourceLang: this.dataSourceLang,
+                recipeTablePageSize: this.recipeTablePageSize,
             });
         },
         getDataSource(): () => Promise<DataSource> {
@@ -124,6 +128,13 @@ export default defineStore('settings', {
         },
         fromJson(json: string) {
             this.$patch(JSON.parse(json));
+            if (!Number.isInteger(this.recipeTablePageSize)) {
+                this.recipeTablePageSize = DEFAULT_PAGE_SIZE;
+            }
+            this.recipeTablePageSize = Math.min(
+                Math.max(this.recipeTablePageSize, MIN_PAGE_SIZE),
+                MAX_PAGE_SIZE,
+            );
             if (
                 // this.dataSource !== 'xivapi' &&
                 // this.dataSource !== 'cafe-xivapi' &&

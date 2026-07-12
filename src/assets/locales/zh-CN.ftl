@@ -1,7 +1,7 @@
 licenses-notices-1 = BestCraft 是自由软件：您可以在遵守由自由软件基金会发布的 GNU Affero 通用公共许可协议的情况下重新分发且或修改软件；或第三版许可协议，或（根据您的选择）任何更新版本。
 licenses-notices-2 = BestCraft 本着可用的意愿分发，但不作任何担保；甚至没有商业性的或对特定目的适用性的暗指。更多细节请参看 GNU Affero 通用公共许可协议。
 licenses-notices-3 = 您应该随 BestCraft 收到一份 GNU Affero 通用公共许可协议。否则请参阅：http://www.gnu.org/licenses/
-copyright-notices = 
+copyright-notices =
     版权所有 2026 Tnze. All Rights Reserved.
     引用的FFXIV相关资源 Copyright © 2010 - 2026 SQUARE ENIX CO., LTD.
 
@@ -45,6 +45,10 @@ leatherworker = 制革匠
 weaver = 裁衣匠
 alchemist = 炼金术士
 culinarian = 烹调师
+favorite = 收藏
+unfavorite = 取消收藏
+clear-all-favorites = 清空收藏
+clear-all-favorites-confirm = 确认要重置所有收藏的配方吗？
 
 # 配装名称
 default = 默认
@@ -193,3 +197,4 @@ select-recipe = 选择配方
 custom-recipe = 自定义配方
 bill-of-material = 物料清单
 settings = 设置
+page-size = 每页显示行数

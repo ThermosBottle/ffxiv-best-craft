@@ -46,6 +46,11 @@ use app_db::{
     wks_mission_unit,
 };
 
+const DEFAULT_PAGE_SIZE: u64 = 100;
+// const MIN_PAGE_SIZE: u64 = 10;
+// const MAX_PAGE_SIZE: u64 = 200;
+
+// 前端通过 Tauri 调用的配方基础查询命令。
 /// 创建新的Recipe对象，蕴含了模拟一次制作过程所必要的全部配方信息
 #[tauri::command(async)]
 async fn recipe_level_table(
@@ -114,6 +119,7 @@ fn err_to_string<T: ToString>(v: T) -> String {
     v.to_string()
 }
 
+// 配方列表查询返回的扁平结构，专门给前端表格使用。
 #[derive(FromQueryResult, Serialize)]
 struct RecipeInfo {
     id: i32,
@@ -136,6 +142,7 @@ struct RecipeInfo {
     recipe_notebook_list: u32,
 }
 
+// 配方列表、等级与明细查询。
 #[tauri::command(async)]
 async fn recipe_table(
     page_id: u64,
@@ -144,6 +151,7 @@ async fn recipe_table(
     recipe_level: Option<i32>,
     job_level_min: Option<i32>,
     job_level_max: Option<i32>,
+    page_size: Option<u64>,
     app_state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<(Vec<RecipeInfo>, u64), String> {
@@ -216,12 +224,57 @@ async fn recipe_table(
         .column_as(recipes::Column::IsExpert, "is_expert")
         .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
         .into_model::<RecipeInfo>()
-        .paginate(db, 200);
+        .paginate(db, page_size.unwrap_or(DEFAULT_PAGE_SIZE));
     let p = paginate.num_pages().await.map_err(err_to_string)?;
     let data = paginate.fetch_page(page_id).await.map_err(err_to_string)?;
     Ok((data, p))
 }
 
+// 单个配方的基础信息查询，与web端统一
+#[tauri::command(async)]
+async fn recipe_info(
+    recipe_id: i32,
+    app_state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<RecipeInfo, String> {
+    let db = app_state.get_db(app_handle).await.map_err(err_to_string)?;
+    Recipes::find_by_id(recipe_id as u32)
+        .join(JoinType::InnerJoin, recipes::Relation::CraftTypes.def())
+        .join(JoinType::InnerJoin, recipes::Relation::ItemResultItem.def())
+        .join(
+            JoinType::InnerJoin,
+            recipes::Relation::RecipeLevelTables.def(),
+        )
+        .select_only()
+        .column_as(recipes::Column::Id, "id")
+        .column_as(recipes::Column::RecipeLevelId, "rlv")
+        .column_as(items::Column::Id, "item_id")
+        .column_as(items::Column::Name, "item_name")
+        .column_as(recipes::Column::ItemResultAmount, "item_amount")
+        .column_as(craft_types::Column::Name, "job")
+        .column_as(recipes::Column::DifficultyFactor, "difficulty_factor")
+        .column_as(recipes::Column::QualityFactor, "quality_factor")
+        .column_as(recipes::Column::DurabilityFactor, "durability_factor")
+        .column_as(
+            recipes::Column::MaterialQualityFactor,
+            "material_quality_factor",
+        )
+        .column_as(
+            recipes::Column::RequiredCraftsmanship,
+            "required_craftsmanship",
+        )
+        .column_as(recipes::Column::RequiredControl, "required_control")
+        .column_as(recipes::Column::CanHq, "can_hq")
+        .column_as(recipes::Column::IsExpert, "is_expert")
+        .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
+        .into_model::<RecipeInfo>()
+        .one(db)
+        .await
+        .map_err(err_to_string)?
+        .ok_or_else(|| "Recipe not found".to_string())
+}
+
+// 单个配方的材料与附加信息查询
 #[tauri::command(async)]
 async fn recipe_level_table_by_job_level(
     job_level: i32,
@@ -321,6 +374,7 @@ struct Enhancer {
 const MEDICINE_SEARCH_ID: u32 = 43;
 const MEALS_SEARCH_ID: u32 = 45;
 
+// 职业类型查询
 #[tauri::command(async)]
 async fn craft_type(
     app_state: tauri::State<'_, AppState>,
@@ -442,6 +496,7 @@ struct TemporaryActionInfo {
     count: u32,
 }
 
+// 工坊任务相关的临时动作信息。
 #[tauri::command(async)]
 async fn temporary_action_info(
     app_state: tauri::State<'_, AppState>,
@@ -512,6 +567,7 @@ async fn create_solver(
     use_observe: bool,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // 创建或复用某个配方对应的求解器实例。
     let key = SolverHash {
         attributes: status.attributes,
         recipe: status.recipe,
@@ -539,7 +595,7 @@ async fn create_solver(
     Ok(())
 }
 
-/// 调用求解器
+// 查询已创建的求解器输出。
 #[tauri::command(async)]
 async fn read_solver(
     status: Status,
@@ -662,6 +718,7 @@ fn rand_simulation(
     rand_simulations::stat(status, &actions, n, ignore_errors)
 }
 
+// 随机模拟与统计分析接口。
 #[tauri::command(async)]
 fn rand_collectables_simulation(
     status: Status,
@@ -684,6 +741,7 @@ fn calc_attributes_scope(status: Status, actions: Vec<Actions>) -> Scope {
     app_libs::analyzer::scope_of_application::calc_scope(status, &actions)
 }
 
+// 程序入口：注册插件、暴露命令并启动 Tauri 窗口。
 fn main() {
     tauri::Builder::default()
         .manage(AppState::new())
@@ -695,6 +753,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             recipe_level_table,
             recipe_level_table_by_job_level,
+            //新加入
+            recipe_info,
             new_status,
             simulate,
             simulate_one_step,

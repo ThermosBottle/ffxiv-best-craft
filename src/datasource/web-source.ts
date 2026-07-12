@@ -47,6 +47,7 @@ export class WebSource {
         craftTypeId?: number,
         jobLevelMin?: number,
         jobLevelMax?: number,
+        pageSize?: number,
     ): Promise<RecipesSourceResult> {
         if (searchName === undefined) {
             searchName = '';
@@ -66,6 +67,9 @@ export class WebSource {
         }
         if (jobLevelMax !== undefined) {
             query.set('job_level_max', String(jobLevelMax));
+        }
+        if (pageSize !== undefined) {
+            query.set('page_size', String(pageSize));
         }
 
         const url =

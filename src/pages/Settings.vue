@@ -1,4 +1,4 @@
-<!-- 
+<!--
     This file is part of BestCraft.
     Copyright (C) 2026  Tnze
 
@@ -30,6 +30,7 @@ import {
     ElRadioButton,
     ElDialog,
     ElText,
+    ElInputNumber,
 } from 'element-plus';
 import { useFluent } from 'fluent-vue';
 import useSettingsStore, { dataSourceList } from '@/stores/settings';
@@ -57,6 +58,8 @@ var checkingUpdate = ref(false);
 var onCheckUpdateClick = async () => {};
 const licenseDialogVisible = ref(false);
 const switchLinesDialogVisible = ref(false);
+
+import { DEFAULT_PAGE_SIZE, MIN_PAGE_SIZE, MAX_PAGE_SIZE } from '@/libs/Consts';
 
 if (isTauri) {
     import('@tauri-apps/api/app').then(
@@ -86,6 +89,21 @@ function fixDataSourceLanguage() {
         store.dataSourceLang = dsLangAllowedList[0];
     }
 }
+
+// 页数设置，异常超范围和小数输入的处理
+const handlePageSizeChange = (value: number | undefined) => {
+    if (value == null) {
+        store.recipeTablePageSize = DEFAULT_PAGE_SIZE;
+        return;
+    }
+
+    const pageSize = Math.trunc(value);
+
+    store.recipeTablePageSize = Math.min(
+        Math.max(pageSize, MIN_PAGE_SIZE),
+        MAX_PAGE_SIZE,
+    );
+};
 </script>
 
 <template>
@@ -134,6 +152,17 @@ function fixDataSourceLanguage() {
                         </span>
                     </el-option>
                 </el-select>
+            </el-form-item>
+            <el-form-item :label="$t('page-size')">
+                <el-input-number
+                    v-model="store.recipeTablePageSize"
+                    :min="MIN_PAGE_SIZE"
+                    :max="MAX_PAGE_SIZE"
+                    :step="10"
+                    :precision="0"
+                    controls-position="right"
+                    @change="handlePageSizeChange"
+                />
             </el-form-item>
             <!-- Data source languages -->
             <el-form-item
@@ -288,7 +317,7 @@ auto = 自动
 
 data-source = 数据源
 ds-local = 本地
-# ds-yyyygames = 
+# ds-yyyygames =
 ds-xivapi = Xivapi
 ds-cafe-xivapi = 咖啡 Xivapi
 ds-local-desc = 简中数据
@@ -326,7 +355,7 @@ auto = 自動
 
 data-source = 資料來源
 ds-local = 本地
-# ds-yyyygames = 
+# ds-yyyygames =
 ds-xivapi = Xivapi
 ds-cafe-xivapi = Cafe Xivapi
 ds-local-desc = 國服資料

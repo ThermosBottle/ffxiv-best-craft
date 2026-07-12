@@ -202,6 +202,7 @@ async fn recipe_table(req: &mut Request, depot: &mut Depot, res: &mut Response) 
     let search_name = req
         .query::<String>("search_name")
         .ok_or_else(|| StatusError::bad_request().detail("Need 'search_name'"))?;
+    let page_size = req.query::<u64>("page_size").unwrap_or(200);
 
     let wks_ids = WksMissionRecipe::find()
         .join(
@@ -275,7 +276,7 @@ async fn recipe_table(req: &mut Request, depot: &mut Depot, res: &mut Response) 
         .column_as(recipes::Column::IsExpert, "is_expert")
         .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
         .order_by(recipes::Column::Id, Order::Asc);
-    let paginate = query.into_model::<RecipeInfo>().paginate(conn, 200);
+    let paginate = query.into_model::<RecipeInfo>().paginate(conn, page_size);
 
     let p = paginate.num_pages().await.map_err(|err| {
         println!("Failed to get total page numbers: {err}");
