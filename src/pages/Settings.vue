@@ -59,7 +59,9 @@ var onCheckUpdateClick = async () => {};
 const licenseDialogVisible = ref(false);
 const switchLinesDialogVisible = ref(false);
 
-import { MIN_PAGE_SIZE, MAX_PAGE_SIZE } from '@/libs/Consts';
+const MIN_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 200;
+const DEFAULT_PAGE_SIZE = 100;
 
 if (isTauri) {
     import('@tauri-apps/api/app').then(

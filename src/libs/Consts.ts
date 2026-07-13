@@ -17,7 +17,3 @@
 export const isWebsite = import.meta.env.VITE_BESTCRAFT_TARGET == 'web';
 export const isTauri = import.meta.env.VITE_BESTCRAFT_TARGET == 'tauri';
 export const isYYYYGames = window.location.hostname == 'tnze.yyyy.games';
-
-export const DEFAULT_PAGE_SIZE = 100;
-export const MIN_PAGE_SIZE = 10;
-export const MAX_PAGE_SIZE = 200;

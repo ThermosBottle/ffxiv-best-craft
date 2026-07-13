@@ -32,6 +32,7 @@ use app_db::{
 
 type Result<T> = std::result::Result<T, StatusError>;
 
+const DEFAULT_PAGE_SIZE: u64 = 100;
 const MAX_PAGE_SIZE: u64 = 200;
 
 #[derive(Deserialize, Debug)]
@@ -205,7 +206,7 @@ async fn recipe_table(req: &mut Request, depot: &mut Depot, res: &mut Response) 
         .ok_or_else(|| StatusError::bad_request().detail("Need 'search_name'"))?;
     let page_size = req
         .query::<u64>("page_size")
-        .unwrap_or(MAX_PAGE_SIZE)
+        .unwrap_or(DEFAULT_PAGE_SIZE)
         .min(MAX_PAGE_SIZE);
 
     let wks_ids = WksMissionRecipe::find()
