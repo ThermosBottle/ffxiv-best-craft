@@ -1,4 +1,4 @@
-<!-- 
+<!--
     This file is part of BestCraft.
     Copyright (C) 2026  Tnze
 
@@ -200,15 +200,33 @@ const initStatus = ref<Status>({
     )),
     quality: initQuality.value,
 });
+
+const minGearsetLevel = computed(() => {
+    const recipeLevel = props.recipe.job_level;
+    return Math.max(1, recipeLevel - 5);
+});
+
 watch([props, enhancedAttributes, initQuality], async ([p, ea, iq]) => {
-    initStatus.value = {
-        ...(await newStatus(
-            ea,
-            p.recipe,
-            store.content?.stellarSteadyHandCount ?? 0,
-        )),
-        quality: iq,
-    };
+    try {
+        initStatus.value = {
+            ...(await newStatus(
+                ea,
+                p.recipe,
+                store.content?.stellarSteadyHandCount ?? 0,
+            )),
+            quality: iq,
+        };
+    } catch (error) {
+        if (String(error) === 'player-level-lower-than-recipe-requirement') {
+            const currentGearset = selectedGearsetRow.value;
+            if (currentGearset) {
+                const minLevel = minGearsetLevel.value;
+                currentGearset.value.level = minLevel;
+            }
+        } else {
+            throw error;
+        }
+    }
 });
 
 // Active Sequence
@@ -396,6 +414,7 @@ async function handleSolverResult(
                             />
                         </el-scrollbar>
                     </el-tab-pane>
+                    <!-- 食药&装备 -->
                     <el-tab-pane
                         :label="$t('attributes-enhance')"
                         name="attributes-enhance"
@@ -405,6 +424,7 @@ async function handleSolverResult(
                             <AttrEnhSelector
                                 v-model="attributesEnhancers"
                                 v-model:gearset-id="gearsetId"
+                                v-model:min-level="minGearsetLevel"
                                 :job="isCustomRecipe ? undefined : displayJob"
                                 :attributes="attributes"
                             />
@@ -623,7 +643,7 @@ save-file = Save file
 save-success = Saving successed
 save-fail = Saving failed: { $reason }
 open-file = Open file
-read-n-macros = Read { $n -> 
+read-n-macros = Read { $n ->
     [one] one macro
     *[other] { $n } macros
 }
@@ -633,7 +653,7 @@ edit = Edit
 delete = Delete
 
 and = { $a } and { $b }
-attributes-do-not-meet-the-requirements = 
+attributes-do-not-meet-the-requirements =
     { $attribute }
     { $num ->
         [one] does
