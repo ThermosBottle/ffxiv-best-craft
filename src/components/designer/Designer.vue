@@ -59,6 +59,7 @@ import ActionQueue from './ActionQueue.vue';
 import StatusBar from './StatusBar.vue';
 import SolverList from './solvers/List.vue';
 import { useFluent } from 'fluent-vue';
+import { ElMessage } from 'element-plus';
 import Analyzers from './tabs/Analyzers.vue';
 import { activeSeqKey, displayJobKey } from './injectionkeys';
 import { Slot, Sequence, SequenceSource } from './types';
@@ -206,6 +207,24 @@ const minGearsetLevel = computed(() => {
     return Math.max(1, recipeLevel - 5);
 });
 
+// check job level
+watch(activeTab, newTab => {
+    if (newTab === 'attributes-enhance') {
+        const currentGearset = selectedGearsetRow.value;
+        if (currentGearset) {
+            const minLevel = minGearsetLevel.value;
+            if (currentGearset.value.level < minLevel) {
+                currentGearset.value.level = minLevel;
+                ElMessage({
+                    message: $t('level-adjusted-warning', { level: minLevel }),
+                    type: 'warning',
+                    duration: 3000,
+                });
+            }
+        }
+    }
+});
+
 watch([props, enhancedAttributes, initQuality], async ([p, ea, iq]) => {
     try {
         initStatus.value = {
@@ -222,6 +241,11 @@ watch([props, enhancedAttributes, initQuality], async ([p, ea, iq]) => {
             if (currentGearset) {
                 const minLevel = minGearsetLevel.value;
                 currentGearset.value.level = minLevel;
+                ElMessage({
+                    message: $t('level-adjusted-warning', { level: minLevel }),
+                    type: 'warning',
+                    duration: 3000,
+                });
             }
         } else {
             throw error;
@@ -596,6 +620,7 @@ delete = 删除
 and = { $a }和{ $b }
 attributes-do-not-meet-the-requirements = 装备{ $attribute }不满足配方要求
 attributes-requirements = 制作该配方要求：作业精度 ≥ { $craftsmanship } 且 加工精度 ≥ { $control }
+level-adjusted-warning = 等级不足，已自动调整为最低要求等级: { $level }
 </fluent>
 
 <fluent locale="zh-TW">
@@ -624,6 +649,7 @@ delete = 刪除
 and = { $a }和{ $b }
 attributes-do-not-meet-the-requirements = 裝備{ $attribute }不滿足配方要求
 attributes-requirements = 製作該配方要求：作業精度 ≥ { $craftsmanship } 且 加工精度 ≥ { $control }
+level-adjusted-warning = 等級不足，已自動調整為最低要求等級: { $level }
 </fluent>
 
 <fluent locale="en-US">
@@ -661,6 +687,7 @@ attributes-do-not-meet-the-requirements =
     }
     not meet the requirements.
 attributes-requirements = Require: craftsmanship ≥ { $craftsmanship } and control ≥ { $control }
+level-adjusted-warning = Level insufficient, automatically adjusted to minimum required level: { $level }
 </fluent>
 
 <fluent locale="ja-JP">
@@ -669,4 +696,5 @@ init-quality = 初期品質
 and = { $a }と{ $b }
 attributes-do-not-meet-the-requirements = { $attribute }が足りないため
 attributes-requirements = 製作可能条件：{ craftsmanship }{ $craftsmanship}以上 と { control }{ $control }以上
+level-adjusted-warning = レベルが不足しているため、最低要求レベルに自動調整されました: { $level }
 </fluent>

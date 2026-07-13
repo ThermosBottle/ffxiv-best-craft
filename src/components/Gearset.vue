@@ -51,12 +51,15 @@ watch(
     },
 );
 
-// Only emit levelChange when the localLevel changes
 function handleLevelChange(value: number | undefined) {
     if (value === undefined || value === null) {
         localLevel.value = store.gearsets[props.index].value.level;
         return;
     }
+
+    // write to store directly
+    store.gearsets[props.index].value.level = value;
+
     emit('levelChange', value);
 }
 </script>
@@ -90,7 +93,7 @@ function handleLevelChange(value: number | undefined) {
         <el-form-item :label="$t('level')">
             <el-input-number
                 v-model="localLevel"
-                :min="minLevel ?? 1"
+                :min="1"
                 :max="100"
                 :step-strictly="true"
                 :value-on-clear="0"
