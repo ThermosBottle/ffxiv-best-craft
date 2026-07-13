@@ -165,6 +165,13 @@ export class WebSource {
         return resp.json();
     }
 
+    async recipeInfoList(recipeIds: number[]): Promise<RecipeInfo[]> {
+        const results = await Promise.all(
+            recipeIds.map(recipeId => this.recipeInfo(recipeId)),
+        );
+        return results;
+    }
+
     async itemInfo(itemId: number): Promise<Item> {
         const query = new URLSearchParams({ item_id: String(itemId) });
         const url = new URL('item_info', this.base);

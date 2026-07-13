@@ -18,8 +18,7 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 
 const Welcome = () => import('./pages/Welcome.vue');
 const GearsetsVue = () => import('./pages/Gearsets.vue');
-const RecipePanelVue = () =>
-    import('./components/recipe-manager/RecipePanel.vue');
+const RecipePanelVue = () => import('./components/RecipePanel.vue');
 const CustomizeRecipe = () =>
     import('./components/recipe-manager/CustomizeRecipe.vue');
 const DesignerVue = () => import('./components/designer/Page.vue');

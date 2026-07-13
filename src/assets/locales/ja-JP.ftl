@@ -44,10 +44,6 @@ leatherworker = 革細工師
 weaver = 裁縫師
 alchemist = 錬金術師
 culinarian = 調理師
-favorite = お気に入り
-unfavorite = お気に入り解除
-clear-all-favorites = お気に入り消去
-clear-all-favorites-confirm = 登録したレシピをすべて消去しますか？
 
 default = デフォルト
 common = 一般的な
@@ -188,8 +184,7 @@ solver-isn-t-prepared = ソルバーの準備が完了していません
 
 # Titles
 attributes = 属性
-select-recipe = レシピ選択
+select-recipe = レシピ検索
 custom-recipe = カスタムレシピ
 bill-of-material = 材料リスト
 settings = 設定
-page-size = 1ページあたりの表示行数

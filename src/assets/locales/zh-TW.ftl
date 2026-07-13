@@ -44,10 +44,6 @@ leatherworker = 皮革師
 weaver = 裁縫師
 alchemist = 鍊金術士
 culinarian = 烹調師
-favorite = 收藏
-unfavorite = 取消收藏
-clear-all-favorites = 清空收藏
-clear-all-favorites-confirm = 確認要重置所有收藏的配方嗎？
 
 # 配裝名稱
 default = 預設
@@ -192,8 +188,7 @@ solver-isn-t-prepared = 求解器未準備完成
 
 # Titles
 attributes = 裝備屬性
-select-recipe = 選擇配方
+select-recipe = 配方檢索
 custom-recipe = 自定義配方
 bill-of-material = 物料清單
 settings = 設定
-page-size = 每頁顯示行數

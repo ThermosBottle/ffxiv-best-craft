@@ -15,8 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    collections::{BTreeMap, HashMap},
-    env,
+    collections::{BTreeMap, HashMap}, env, u64::MAX,
 };
 
 use salvo::cors;
@@ -32,6 +31,8 @@ use app_db::{
 };
 
 type Result<T> = std::result::Result<T, StatusError>;
+
+const MAX_PAGE_SIZE: u64 = 200;
 
 #[derive(Deserialize, Debug)]
 struct ServerConfig {
@@ -202,7 +203,10 @@ async fn recipe_table(req: &mut Request, depot: &mut Depot, res: &mut Response) 
     let search_name = req
         .query::<String>("search_name")
         .ok_or_else(|| StatusError::bad_request().detail("Need 'search_name'"))?;
-    let page_size = req.query::<u64>("page_size").unwrap_or(200);
+    let page_size = req
+        .query::<u64>("page_size")
+        .unwrap_or(MAX_PAGE_SIZE)
+        .min(MAX_PAGE_SIZE);
 
     let wks_ids = WksMissionRecipe::find()
         .join(

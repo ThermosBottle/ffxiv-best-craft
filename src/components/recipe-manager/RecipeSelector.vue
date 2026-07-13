@@ -17,7 +17,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, onActivated, watchEffect } from 'vue';
+import { ref, reactive, watch, onMounted, watchEffect } from 'vue';
 import {
     ElInput,
     ElButton,
@@ -30,10 +30,9 @@ import {
     ElSelect,
     ElOption,
     ElInputNumber,
-    ElMessageBox,
 } from 'element-plus';
 import type { TableColumnCtx } from 'element-plus';
-import { EditPen } from '@element-plus/icons-vue';
+import { EditPen, Star, StarFilled } from '@element-plus/icons-vue';
 import {
     CollectablesShopRefine,
     Item,
@@ -43,22 +42,11 @@ import {
 } from '@/libs/Craft';
 import { useRouter } from 'vue-router';
 import { useFluent } from 'fluent-vue';
-import {
-    CraftType,
-    DataSource,
-    DataSourceType,
-    RecipesSourceResult,
-} from '@/datasource/source';
+import { CraftType, DataSource, DataSourceType } from '@/datasource/source';
 import useSettingsStore from '@/stores/settings';
 import { useMediaQuery } from '@vueuse/core';
 import ConfirmDialog from './ConfirmDialog.vue';
-import { Star, StarFilled } from '@element-plus/icons-vue';
 import useRecipeFavoritesStore from '@/stores/recipe-favorites';
-
-const emit = defineEmits<{
-    (e: 'setTitle', title: string): void;
-}>();
-onActivated(() => emit('setTitle', 'select-recipe'));
 
 const searchingDelayMs = 200;
 const settingStore = useSettingsStore();
@@ -81,82 +69,6 @@ const stellarSteadyHandCount = ref<number>(0);
 
 const recipeFavoritesStore = useRecipeFavoritesStore();
 
-// 仅在第一页且没有搜索内容时才置顶收藏配方
-function shouldPinFavorites(
-    pageNumber = pagination.Page,
-    searching = searchText.value,
-): boolean {
-    return pageNumber === 1 && searching.trim() === '';
-}
-
-function mergePinnedFavorites(
-    pinned: RecipeInfo[],
-    results: RecipeInfo[],
-): RecipeInfo[] {
-    const seen = new Set<number>();
-    const merged: RecipeInfo[] = [];
-    for (const row of pinned) {
-        if (seen.has(row.id)) continue;
-        seen.add(row.id);
-        merged.push(row);
-    }
-
-    for (const row of results) {
-        if (seen.has(row.id)) continue;
-        seen.add(row.id);
-        merged.push(row);
-    }
-    return merged;
-}
-
-//加载置顶收藏配方
-async function loadPinnedFavoriteRecipes(source: DataSource) {
-    if (source.recipeInfo == undefined) return [] as RecipeInfo[];
-    const recipeIds = recipeFavoritesStore.recipes;
-    if (recipeIds.length == 0) return [] as RecipeInfo[];
-    const selectedCraftTypeName =
-        filterCraftType.value == undefined
-            ? undefined
-            : craftTypeOptions.value.find(v => v.id == filterCraftType.value)
-                  ?.name;
-    const selectedLevelRange =
-        filterLevel.value == undefined
-            ? undefined
-            : {
-                  min: filterLevel.value * 10 - 9,
-                  max: filterLevel.value * 10,
-              };
-    const pinned = await Promise.all(
-        recipeIds.map(async recipeId => {
-            try {
-                const recipe = await source.recipeInfo!(recipeId);
-                if (
-                    selectedCraftTypeName != undefined &&
-                    recipe.job != selectedCraftTypeName
-                ) {
-                    return undefined;
-                }
-                if (selectedLevelRange != undefined) {
-                    const recipeLevel = await source.recipeLevelTable(
-                        recipe.rlv,
-                    );
-                    if (
-                        recipeLevel.class_job_level < selectedLevelRange.min ||
-                        recipeLevel.class_job_level > selectedLevelRange.max
-                    ) {
-                        return undefined;
-                    }
-                }
-                return recipe;
-            } catch (err) {
-                console.error(err);
-                return undefined;
-            }
-        }),
-    );
-    return pinned.filter((v): v is RecipeInfo => v !== undefined);
-}
-
 async function craftTypeRemoteMethod() {
     const source = await settingStore.getDataSource();
     filterCraftType.value = undefined;
@@ -173,7 +85,6 @@ async function updateRecipePage(
     pageNumber: number,
     searching: string,
 ) {
-    // 对于已有缓存的加载会很快，只有较慢的情况才需要显示Loading
     let timer = setTimeout(() => (isRecipeTableLoading.value = true), 200);
     try {
         let promise = dataSource.recipeTable(
@@ -185,19 +96,10 @@ async function updateRecipePage(
             filterLevel.value ? filterLevel.value * 10 : undefined,
             settingStore.recipeTablePageSize,
         );
-        // 锁
         loadRecipeTableResult = promise;
         let { results, totalPages } = await promise;
         if (loadRecipeTableResult == promise) {
-            console.log(
-                `${filterCraftType.value} ${filterLevel.value} ${filterRecipeLevel.value}`,
-            );
-            if (shouldPinFavorites(pageNumber, searching)) {
-                const pinned = await loadPinnedFavoriteRecipes(dataSource);
-                displayTable.value = mergePinnedFavorites(pinned, results);
-            } else {
-                displayTable.value = results;
-            }
+            displayTable.value = results;
             pagination.PageTotal = totalPages;
             loadRecipeTableResult = null;
         }
@@ -209,7 +111,6 @@ async function updateRecipePage(
     }
 }
 
-// 搜索时更新
 let searchTimer: any = null;
 watch(searchText, async searching => {
     const source = await settingStore.getDataSource();
@@ -222,7 +123,7 @@ watch(searchText, async searching => {
             break;
         case DataSourceType.RemoteRealtime:
             searchTimer = setTimeout(() => {
-                pagination.Page = 1; // 触发搜索时应该翻回第一页，否则搜不到东西
+                pagination.Page = 1;
                 updateRecipePage(source, pagination.Page, searching);
                 searchTimer = null;
             }, searchingDelayMs);
@@ -230,7 +131,6 @@ watch(searchText, async searching => {
     }
 });
 
-// 翻页时更新
 watch(
     () => pagination.Page,
     async pageNumber => {
@@ -239,21 +139,18 @@ watch(
     },
 );
 
-// 回车手动更新
 async function triggerSearch() {
     const source = await settingStore.getDataSource();
     const searching = searchText.value;
-    pagination.Page = 1; // 触发搜索时应该翻回第一页，否则搜不到东西
+    pagination.Page = 1;
     await updateRecipePage(source, 1, searching);
 }
 
-// 页面载入后更新
 onMounted(async () => {
     triggerSearch();
     craftTypeRemoteMethod();
 });
 
-// 数据源切换时更新
 watch(
     () => [settingStore.dataSource, settingStore.dataSourceLang],
     () => {
@@ -269,18 +166,6 @@ watch(
     },
 );
 
-// 收藏配方更新时刷新当前页
-watch(
-    () => recipeFavoritesStore.recipes.slice(),
-    async () => {
-        if (shouldPinFavorites()) {
-            const source = await settingStore.getDataSource();
-            await updateRecipePage(source, pagination.Page, searchText.value);
-        }
-    },
-);
-
-// 接受跳转参数
 watchEffect(() => {
     const recipeId = router.currentRoute.value.query.recipeId;
     if (recipeId !== undefined) {
@@ -311,59 +196,61 @@ async function selectRecipeRow(row: RecipeInfo) {
         isRecipeTableLoading.value = true;
         const source = await settingStore.getDataSource();
 
-        var [recipeLevel, itemInfoTmp, collectabilityTmp, temporaryActionInfo] =
-            await Promise.all([
-                source.recipeLevelTable(row.rlv),
-                source.itemInfo(row.item_id),
-                (async () => {
-                    if (source.recipeCollectableShopRefine == undefined) {
-                        return undefined;
-                    }
-                    try {
-                        return await source.recipeCollectableShopRefine(row.id);
-                    } catch (e: any) {
-                        console.error(
-                            'Failed to fatch recipe collectability',
-                            e,
-                        );
-                        return undefined; // in case the server doesn't support or any other situation;
-                    }
-                })(),
-                (async () => {
-                    if (source.temporaryActionInfo) {
-                        try {
-                            return await source.temporaryActionInfo(row.id);
-                        } catch (err: any) {
-                            ElMessage({
-                                type: 'warning',
-                                message: $t(
-                                    'failed-to-load-temporary-action-info',
-                                    { err: String(err) },
-                                ),
-                            });
-                        }
-                    }
+        const [
+            recipeLevel,
+            itemInfoTmp,
+            collectabilityTmp,
+            temporaryActionInfo,
+        ] = await Promise.all([
+            source.recipeLevelTable(row.rlv),
+            source.itemInfo(row.item_id),
+            (async () => {
+                if (source.recipeCollectableShopRefine == undefined) {
                     return undefined;
-                })(),
-            ]);
+                }
+                try {
+                    return await source.recipeCollectableShopRefine(row.id);
+                } catch (e: any) {
+                    console.error('Failed to fatch recipe collectability', e);
+                    return undefined;
+                }
+            })(),
+            (async () => {
+                if (source.temporaryActionInfo) {
+                    try {
+                        return await source.temporaryActionInfo(row.id);
+                    } catch (err: any) {
+                        ElMessage({
+                            type: 'warning',
+                            message: $t(
+                                'failed-to-load-temporary-action-info',
+                                { err: String(err) },
+                            ),
+                        });
+                    }
+                }
+                return undefined;
+            })(),
+        ]);
+        recipe.value = await newRecipe(
+            recipeLevel,
+            row.difficulty_factor,
+            row.quality_factor,
+            row.durability_factor,
+        );
+        recipeInfo.value = row;
+        itemInfo.value = itemInfoTmp;
+        collectability.value = collectabilityTmp;
+        confirmDialogVisible.value = true;
+        stellarSteadyHandCount.value =
+            temporaryActionInfo?.action == 46843
+                ? temporaryActionInfo.count
+                : 0;
     } catch (e: any) {
         ElMessage.error(String(e));
-        return;
     } finally {
         isRecipeTableLoading.value = false;
     }
-    recipe.value = await newRecipe(
-        recipeLevel,
-        row.difficulty_factor,
-        row.quality_factor,
-        row.durability_factor,
-    );
-    recipeInfo.value = row;
-    itemInfo.value = itemInfoTmp;
-    collectability.value = collectabilityTmp;
-    confirmDialogVisible.value = true;
-    stellarSteadyHandCount.value =
-        temporaryActionInfo?.action == 46843 ? temporaryActionInfo.count : 0;
 }
 
 async function selectRecipeById(recipeId: number) {
@@ -374,32 +261,16 @@ async function selectRecipeById(recipeId: number) {
     }
     try {
         isRecipeTableLoading.value = true;
-        var recipeInfo = await source.recipeInfo(recipeId);
-        // isRecipeTableLoading.value = false; // Done by selectRecipeRow()
+        const selectedRecipeInfo = await source.recipeInfo(recipeId);
+        await selectRecipeRow(selectedRecipeInfo);
     } catch (e: any) {
         ElMessage.error($t('select-recipe-by-id-error', { err: String(e) }));
         isRecipeTableLoading.value = false;
-        return;
     }
-    await selectRecipeRow(recipeInfo);
 }
 
 function toggleRecipeFavorite(row: RecipeInfo) {
     recipeFavoritesStore.toggleRecipe(row.id);
-}
-
-async function clearAllFavorites() {
-    if (recipeFavoritesStore.recipes.length === 0) return;
-    try {
-        await ElMessageBox.confirm(
-            $t('clear-all-favorites-confirm'),
-            $t('clear-all-favorites'),
-            { type: 'warning' },
-        );
-    } catch {
-        return;
-    }
-    recipeFavoritesStore.clearRecipes();
 }
 </script>
 
@@ -430,22 +301,7 @@ async function clearAllFavorites() {
                 </el-button>
             </template>
         </el-input>
-        <div
-            style="
-                display: flex;
-                justify-content: space-between;
-                width: 80%;
-                gap: 5%;
-                max-width: 800px;
-            "
-        >
-            <el-button
-                type="primary"
-                class="clear-button"
-                @click="clearAllFavorites"
-            >
-                {{ $t('clear-all-favorites') }}
-            </el-button>
+        <div class="filter-row">
             <el-form class="select-filters">
                 <el-form-item :label="$t('craft-type')">
                     <el-select
@@ -558,6 +414,7 @@ async function clearAllFavorites() {
 <style scoped>
 .container {
     height: 100%;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -569,6 +426,14 @@ async function clearAllFavorites() {
     width: 80%;
 }
 
+.filter-row {
+    display: flex;
+    justify-content: space-between;
+    width: 80%;
+    gap: 5%;
+    max-width: 800px;
+}
+
 .el-table {
     user-select: none;
     --el-fill-color-blank: transparent;
@@ -576,7 +441,6 @@ async function clearAllFavorites() {
 
 .el-pagination {
     justify-content: center;
-    /* margin-bottom: 10px; */
     --el-fill-color-blank: transparent;
 }
 
@@ -586,10 +450,6 @@ async function clearAllFavorites() {
     justify-content: space-evenly;
     align-items: center;
     gap: 5%;
-}
-
-.clear-button {
-    flex: 0 0 auto;
 }
 
 .select-filters :deep(.el-form-item) {
@@ -616,6 +476,11 @@ craft-type = 制作类型
 level = 等级
 name = 名称
 can-hq = 存在HQ
+
+favorite = 收藏
+unfavorite = 取消收藏
+clear-all-favorites = 清空收藏
+clear-all-favorites-confirm = 确认要重置所有收藏的配方吗？
 </fluent>
 
 <fluent locale="zh-TW">
@@ -631,6 +496,11 @@ craft-type = 製作職業
 level = 等級
 name = 名稱
 can-hq = 存在HQ
+
+favorite = 收藏
+unfavorite = 取消收藏
+clear-all-favorites = 清空收藏
+clear-all-favorites-confirm = 確認要重置所有收藏的配方嗎？
 </fluent>
 
 <fluent locale="en-US">
@@ -646,6 +516,11 @@ craft-type = Craft Type
 level = Level
 name = Name
 can-hq = Can HQ
+
+favorite = Favorite
+unfavorite = Unfavorite
+clear-all-favorites = Clear Favorites
+clear-all-favorites-confirm = Reset all favorite recipes?
 </fluent>
 
 <fluent locale="ja-JP">
@@ -659,6 +534,11 @@ please-wait = お待ちください...
 type = タイプ
 craft-type = 製作タイプ
 level = レベル
-name = 名前
+name = アイテム
 can-hq = HQ可
+
+favorite = お気に入り
+unfavorite = お気に入り解除
+clear-all-favorites = お気に入り消去
+clear-all-favorites-confirm = 登録したレシピをすべて消去しますか？
 </fluent>

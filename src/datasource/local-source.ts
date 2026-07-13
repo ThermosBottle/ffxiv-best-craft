@@ -75,8 +75,19 @@ export class LocalRecipeSource {
         )('recipe_collectability', { recipeId });
     }
 
+    // integration of interface
     async recipeInfo(recipeId: number): Promise<RecipeInfo> {
-        return await (await this.invoke)('recipe_info', { recipeId });
+        const results = await this.recipeInfoList([recipeId]);
+        if (results.length === 0) {
+            throw new Error(`Recipe ${recipeId} not found`);
+        }
+        return results[0];
+    }
+
+    // Query multiple recipe info in parallel (?)
+    async recipeInfoList(recipeIds: number[]): Promise<RecipeInfo[]> {
+        const invoke = await this.invoke;
+        return await invoke('search_recipe_by_ids', { recipeIds });
     }
 
     async recipeLevelTable(rlv: number): Promise<RecipeLevel> {

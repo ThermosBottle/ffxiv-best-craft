@@ -45,10 +45,7 @@ leatherworker = Leatherworker
 weaver = Weaver
 alchemist = Alchemist
 culinarian = Culinarian
-favorite = Favorite
-unfavorite = Unfavorite
-clear-all-favorites = Clear Favorites
-clear-all-favorites-confirm = Reset all favorite recipes?
+
 
 # Gearset names
 default = Default
@@ -190,11 +187,10 @@ solver-isn-t-prepared = Solver isn't prepared
 
 # Titles
 attributes = Crafter Attributes
-select-recipe = Select Recipe
+select-recipe = Search Recipe
 custom-recipe = Custom Recipe
 bill-of-material = Bill of Material
 settings = Settings
-page-size = Rows per page
 title = { $recipe } (Simulator Mode)
 
 # Solvers

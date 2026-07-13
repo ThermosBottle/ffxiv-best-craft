@@ -17,7 +17,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, onActivated } from 'vue';
+import { computed, ref, onActivated } from 'vue';
 import {
     ElScrollbar,
     ElForm,
@@ -59,7 +59,7 @@ var onCheckUpdateClick = async () => {};
 const licenseDialogVisible = ref(false);
 const switchLinesDialogVisible = ref(false);
 
-import { DEFAULT_PAGE_SIZE, MIN_PAGE_SIZE, MAX_PAGE_SIZE } from '@/libs/Consts';
+import { MIN_PAGE_SIZE, MAX_PAGE_SIZE } from '@/libs/Consts';
 
 if (isTauri) {
     import('@tauri-apps/api/app').then(
@@ -90,20 +90,11 @@ function fixDataSourceLanguage() {
     }
 }
 
-// 页数设置，异常超范围和小数输入的处理
-const handlePageSizeChange = (value: number | undefined) => {
-    if (value == null) {
-        store.recipeTablePageSize = DEFAULT_PAGE_SIZE;
-        return;
-    }
-
-    const pageSize = Math.trunc(value);
-
-    store.recipeTablePageSize = Math.min(
-        Math.max(pageSize, MIN_PAGE_SIZE),
-        MAX_PAGE_SIZE,
-    );
-};
+// read & write recipeTablePageSize from store
+const recipeTablePageSize = computed({
+    get: () => store.recipeTablePageSize,
+    set: value => store.setRecipeTablePageSize(value),
+});
 </script>
 
 <template>
@@ -155,13 +146,12 @@ const handlePageSizeChange = (value: number | undefined) => {
             </el-form-item>
             <el-form-item :label="$t('page-size')">
                 <el-input-number
-                    v-model="store.recipeTablePageSize"
+                    v-model="recipeTablePageSize"
                     :min="MIN_PAGE_SIZE"
                     :max="MAX_PAGE_SIZE"
                     :step="10"
                     :precision="0"
                     controls-position="right"
-                    @change="handlePageSizeChange"
                 />
             </el-form-item>
             <!-- Data source languages -->
@@ -315,6 +305,8 @@ light = 亮
 dark = 暗
 auto = 自动
 
+page-size = 每页显示行数
+
 data-source = 数据源
 ds-local = 本地
 # ds-yyyygames =
@@ -353,6 +345,8 @@ light = 亮
 dark = 暗
 auto = 自動
 
+page-size = 每頁顯示行數
+
 data-source = 資料來源
 ds-local = 本地
 # ds-yyyygames =
@@ -389,6 +383,9 @@ theme = Theme
 light = Light
 dark = Dark
 auto = Auto
+
+page-size = Rows per page
+
 data-source = Data Source
 ds-local = Local
 ds-yyyygames = YYYY.GAMES
@@ -425,6 +422,9 @@ data-source = データソース
 ds-local = ローカル
 # ds-xivapi =
 # ds-cafe =
+
+page-size = ページ表示行数
+
 switch-lines = サーバの切り替え
 dslang-zh-CN = 簡体字中国語
 dslang-zh-TW = 繁体字中国語

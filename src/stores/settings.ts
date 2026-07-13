@@ -46,6 +46,15 @@ if (!isTauri) {
     dataSourceList.delete('local');
 }
 
+function normalizeRecipeTablePageSize(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return DEFAULT_PAGE_SIZE;
+    }
+
+    const pageSize = Math.trunc(value);
+    return Math.min(Math.max(pageSize, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+}
+
 export default defineStore('settings', {
     state: () => ({
         language: 'system',
@@ -96,8 +105,12 @@ export default defineStore('settings', {
         },
     },
     actions: {
+        setRecipeTablePageSize(value: unknown) {
+            this.recipeTablePageSize = normalizeRecipeTablePageSize(value);
+        },
         loadSettings(localSettings: any) {
             this.$patch(localSettings);
+            this.setRecipeTablePageSize(this.recipeTablePageSize);
             let allowedLangs = dataSourceList.get(this.dataSource);
             if (allowedLangs == undefined) {
                 const [defaultSource, langs] = dataSourceList
@@ -128,13 +141,7 @@ export default defineStore('settings', {
         },
         fromJson(json: string) {
             this.$patch(JSON.parse(json));
-            if (!Number.isInteger(this.recipeTablePageSize)) {
-                this.recipeTablePageSize = DEFAULT_PAGE_SIZE;
-            }
-            this.recipeTablePageSize = Math.min(
-                Math.max(this.recipeTablePageSize, MIN_PAGE_SIZE),
-                MAX_PAGE_SIZE,
-            );
+            this.setRecipeTablePageSize(this.recipeTablePageSize);
             if (
                 // this.dataSource !== 'xivapi' &&
                 // this.dataSource !== 'cafe-xivapi' &&
