@@ -19,7 +19,9 @@ import { DataSource } from '@/datasource/source';
 import { WebSource, YYYYGamesApiBase } from '@/datasource/web-source';
 import { isTauri, isWebsite } from '@/libs/Consts';
 
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from '@/libs/Consts';
+const DEFAULT_PAGE_SIZE = 100;
+const MIN_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 200;
 
 export type DataSourceID =
     | 'local'
