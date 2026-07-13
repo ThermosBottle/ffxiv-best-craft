@@ -253,6 +253,7 @@ async function selectRecipeRow(row: RecipeInfo) {
     }
 }
 
+// single request
 async function selectRecipeById(recipeId: number) {
     const source = await settingStore.getDataSource();
     if (source.recipeInfo == undefined) {

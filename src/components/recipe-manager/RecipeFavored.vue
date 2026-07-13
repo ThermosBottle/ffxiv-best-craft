@@ -194,6 +194,7 @@ async function clickRecipeRow(
     event: PointerEvent,
 ) {
     const target = event.target as HTMLElement;
+    // if click on cell blank of favorite button, don't do anything
     if (target.closest('.favorite-column')) {
         return;
     }

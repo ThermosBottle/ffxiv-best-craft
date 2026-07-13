@@ -84,7 +84,7 @@ export class LocalRecipeSource {
         return results[0];
     }
 
-    // Query multiple recipe info in parallel (?)
+    // query multiple recipe info in parallel (?)
     async recipeInfoList(recipeIds: number[]): Promise<RecipeInfo[]> {
         const invoke = await this.invoke;
         return await invoke('search_recipe_by_ids', { recipeIds });

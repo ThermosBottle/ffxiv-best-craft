@@ -165,11 +165,24 @@ export class WebSource {
         return resp.json();
     }
 
+    // batch fetch multiple recipe info in a single request
+    // no parallel fetch now
     async recipeInfoList(recipeIds: number[]): Promise<RecipeInfo[]> {
-        const results = await Promise.all(
-            recipeIds.map(recipeId => this.recipeInfo(recipeId)),
-        );
-        return results;
+        if (recipeIds.length === 0) return [];
+
+        const query = new URLSearchParams({
+            recipe_ids: recipeIds.join(','),
+        });
+        const url =
+            new URL('recipe_info_batch', this.base).toString() +
+            '?' +
+            query.toString();
+        const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+        });
+        if (!resp.ok) throw resp.status;
+        return resp.json();
     }
 
     async itemInfo(itemId: number): Promise<Item> {

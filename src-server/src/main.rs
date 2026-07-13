@@ -374,6 +374,7 @@ async fn recipes_ingredientions(
     Ok(())
 }
 
+// support both single recipe_id and comma-separated recipe_ids
 #[handler]
 async fn recipe_info(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<()> {
     let state = depot
@@ -384,10 +385,26 @@ async fn recipe_info(req: &mut Request, depot: &mut Depot, res: &mut Response) -
         .connections
         .get(lang)
         .ok_or_else(|| StatusError::bad_request())?;
-    let recipe_id = req
-        .query::<u32>("recipe_id")
-        .ok_or_else(|| StatusError::bad_request().detail("Need 'recipe_id'"))?;
-    let result = Recipes::find_by_id(recipe_id)
+
+    let recipe_ids: Vec<u32> = if let Some(recipe_ids_str) = req.query::<String>("recipe_ids") {
+        recipe_ids_str
+            .split(',')
+            .filter_map(|s| s.trim().parse::<u32>().ok())
+            .collect()
+    } else if let Some(recipe_id) = req.query::<u32>("recipe_id") {
+        vec![recipe_id]
+    } else {
+        return Err(StatusError::bad_request().detail("Need 'recipe_id' or 'recipe_ids'"));
+    };
+
+    if recipe_ids.is_empty() {
+        res.render(Json(Vec::<RecipeInfo>::new()));
+        return Ok(());
+    }
+
+    // query for both single and multiple IDs
+    let results = Recipes::find()
+        .filter(recipes::Column::Id.is_in(recipe_ids.clone()))
         .join(JoinType::InnerJoin, recipes::Relation::CraftTypes.def())
         .join(JoinType::InnerJoin, recipes::Relation::ItemResultItem.def())
         .join(
@@ -417,14 +434,23 @@ async fn recipe_info(req: &mut Request, depot: &mut Depot, res: &mut Response) -
         .column_as(recipes::Column::IsExpert, "is_expert")
         .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
         .into_model::<RecipeInfo>()
-        .one(conn)
+        .all(conn)
         .await
         .map_err(|e| {
             println!("recipe_info error: {e:?}");
             StatusError::internal_server_error()
-        })?
-        .ok_or_else(|| StatusError::bad_request().detail("Recipe not found"))?;
-    res.render(Json(result));
+        })?;
+
+    // Return single object if only one ID was requested via recipe_id parameter
+    if recipe_ids.len() == 1 && req.query::<u32>("recipe_id").is_some() {
+        let result = results
+            .into_iter()
+            .next()
+            .ok_or_else(|| StatusError::bad_request().detail("Recipe not found"))?;
+        res.render(Json(result));
+    } else {
+        res.render(Json(results));
+    }
     Ok(())
 }
 
