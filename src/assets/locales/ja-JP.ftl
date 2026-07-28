@@ -1,7 +1,7 @@
 licenses-notices-1 = BestCraft is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 licenses-notices-2 = BestCraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 licenses-notices-3 = You should have received a copy of the GNU Affero General Public License along with BestCraft. If not, see https://www.gnu.org/licenses/.
-copyright-notices = 
+copyright-notices =
     Copyright 2026 Tnze. All Rights Reserved.
     Referenced FFXIV related resources: Copyright © 2010 - 2026 SQUARE ENIX CO., LTD.
 
@@ -184,7 +184,7 @@ solver-isn-t-prepared = ソルバーの準備が完了していません
 
 # Titles
 attributes = 属性
-select-recipe = レシピ選択
+select-recipe = レシピ検索
 custom-recipe = カスタムレシピ
 bill-of-material = 材料リスト
 settings = 設定

@@ -41,6 +41,7 @@ export class LocalRecipeSource {
         craftTypeId?: number,
         jobLevelMin?: number,
         jobLevelMax?: number,
+        pageSize?: number,
     ): Promise<RecipesSourceResult> {
         if (searchName === undefined) {
             searchName = '';
@@ -54,6 +55,7 @@ export class LocalRecipeSource {
             recipeLevel: rlv,
             jobLevelMin,
             jobLevelMax,
+            pageSize,
         });
         return { results, totalPages };
     }
@@ -71,6 +73,21 @@ export class LocalRecipeSource {
         return await (
             await this.invoke
         )('recipe_collectability', { recipeId });
+    }
+
+    // integration of interface
+    async recipeInfo(recipeId: number): Promise<RecipeInfo> {
+        const results = await this.recipeInfoList([recipeId]);
+        if (results.length === 0) {
+            throw new Error(`Recipe ${recipeId} not found`);
+        }
+        return results[0];
+    }
+
+    // query multiple recipe info in parallel (?)
+    async recipeInfoList(recipeIds: number[]): Promise<RecipeInfo[]> {
+        const invoke = await this.invoke;
+        return await invoke('search_recipe_by_ids', { recipeIds });
     }
 
     async recipeLevelTable(rlv: number): Promise<RecipeLevel> {

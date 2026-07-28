@@ -15,8 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    collections::{BTreeMap, HashMap},
-    env,
+    collections::{BTreeMap, HashMap}, env, u64::MAX,
 };
 
 use salvo::cors;
@@ -32,6 +31,9 @@ use app_db::{
 };
 
 type Result<T> = std::result::Result<T, StatusError>;
+
+const DEFAULT_PAGE_SIZE: u64 = 100;
+const MAX_PAGE_SIZE: u64 = 200;
 
 #[derive(Deserialize, Debug)]
 struct ServerConfig {
@@ -202,6 +204,10 @@ async fn recipe_table(req: &mut Request, depot: &mut Depot, res: &mut Response) 
     let search_name = req
         .query::<String>("search_name")
         .ok_or_else(|| StatusError::bad_request().detail("Need 'search_name'"))?;
+    let page_size = req
+        .query::<u64>("page_size")
+        .unwrap_or(DEFAULT_PAGE_SIZE)
+        .min(MAX_PAGE_SIZE);
 
     let wks_ids = WksMissionRecipe::find()
         .join(
@@ -275,7 +281,7 @@ async fn recipe_table(req: &mut Request, depot: &mut Depot, res: &mut Response) 
         .column_as(recipes::Column::IsExpert, "is_expert")
         .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
         .order_by(recipes::Column::Id, Order::Asc);
-    let paginate = query.into_model::<RecipeInfo>().paginate(conn, 200);
+    let paginate = query.into_model::<RecipeInfo>().paginate(conn, page_size);
 
     let p = paginate.num_pages().await.map_err(|err| {
         println!("Failed to get total page numbers: {err}");
@@ -369,6 +375,7 @@ async fn recipes_ingredientions(
     Ok(())
 }
 
+// support both single recipe_id and comma-separated recipe_ids
 #[handler]
 async fn recipe_info(req: &mut Request, depot: &mut Depot, res: &mut Response) -> Result<()> {
     let state = depot
@@ -379,10 +386,26 @@ async fn recipe_info(req: &mut Request, depot: &mut Depot, res: &mut Response) -
         .connections
         .get(lang)
         .ok_or_else(|| StatusError::bad_request())?;
-    let recipe_id = req
-        .query::<u32>("recipe_id")
-        .ok_or_else(|| StatusError::bad_request().detail("Need 'recipe_id'"))?;
-    let result = Recipes::find_by_id(recipe_id)
+
+    let recipe_ids: Vec<u32> = if let Some(recipe_ids_str) = req.query::<String>("recipe_ids") {
+        recipe_ids_str
+            .split(',')
+            .filter_map(|s| s.trim().parse::<u32>().ok())
+            .collect()
+    } else if let Some(recipe_id) = req.query::<u32>("recipe_id") {
+        vec![recipe_id]
+    } else {
+        return Err(StatusError::bad_request().detail("Need 'recipe_id' or 'recipe_ids'"));
+    };
+
+    if recipe_ids.is_empty() {
+        res.render(Json(Vec::<RecipeInfo>::new()));
+        return Ok(());
+    }
+
+    // query for both single and multiple IDs
+    let results = Recipes::find()
+        .filter(recipes::Column::Id.is_in(recipe_ids.clone()))
         .join(JoinType::InnerJoin, recipes::Relation::CraftTypes.def())
         .join(JoinType::InnerJoin, recipes::Relation::ItemResultItem.def())
         .join(
@@ -412,14 +435,23 @@ async fn recipe_info(req: &mut Request, depot: &mut Depot, res: &mut Response) -
         .column_as(recipes::Column::IsExpert, "is_expert")
         .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
         .into_model::<RecipeInfo>()
-        .one(conn)
+        .all(conn)
         .await
         .map_err(|e| {
             println!("recipe_info error: {e:?}");
             StatusError::internal_server_error()
-        })?
-        .ok_or_else(|| StatusError::bad_request().detail("Recipe not found"))?;
-    res.render(Json(result));
+        })?;
+
+    // Return single object if only one ID was requested via recipe_id parameter
+    if recipe_ids.len() == 1 && req.query::<u32>("recipe_id").is_some() {
+        let result = results
+            .into_iter()
+            .next()
+            .ok_or_else(|| StatusError::bad_request().detail("Recipe not found"))?;
+        res.render(Json(result));
+    } else {
+        res.render(Json(results));
+    }
     Ok(())
 }
 

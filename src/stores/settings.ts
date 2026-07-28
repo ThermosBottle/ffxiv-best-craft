@@ -19,6 +19,10 @@ import { DataSource } from '@/datasource/source';
 import { WebSource, YYYYGamesApiBase } from '@/datasource/web-source';
 import { isTauri, isWebsite } from '@/libs/Consts';
 
+const DEFAULT_PAGE_SIZE = 100;
+const MIN_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 200;
+
 export type DataSourceID =
     | 'local'
     | 'yyyy.games'
@@ -44,12 +48,22 @@ if (!isTauri) {
     dataSourceList.delete('local');
 }
 
+function normalizeRecipeTablePageSize(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return DEFAULT_PAGE_SIZE;
+    }
+
+    const pageSize = Math.trunc(value);
+    return Math.min(Math.max(pageSize, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+}
+
 export default defineStore('settings', {
     state: () => ({
         language: 'system',
         dataSource: dataSourceList.keys().next().value!,
         dataSourceLang: dataSourceList.values().next().value?.values().next()
             .value,
+        recipeTablePageSize: DEFAULT_PAGE_SIZE,
     }),
     getters: {
         toJson(): string {
@@ -57,6 +71,7 @@ export default defineStore('settings', {
                 language: this.language,
                 dataSource: this.dataSource,
                 dataSourceLang: this.dataSourceLang,
+                recipeTablePageSize: this.recipeTablePageSize,
             });
         },
         getDataSource(): () => Promise<DataSource> {
@@ -92,8 +107,12 @@ export default defineStore('settings', {
         },
     },
     actions: {
+        setRecipeTablePageSize(value: unknown) {
+            this.recipeTablePageSize = normalizeRecipeTablePageSize(value);
+        },
         loadSettings(localSettings: any) {
             this.$patch(localSettings);
+            this.setRecipeTablePageSize(this.recipeTablePageSize);
             let allowedLangs = dataSourceList.get(this.dataSource);
             if (allowedLangs == undefined) {
                 const [defaultSource, langs] = dataSourceList
@@ -124,6 +143,7 @@ export default defineStore('settings', {
         },
         fromJson(json: string) {
             this.$patch(JSON.parse(json));
+            this.setRecipeTablePageSize(this.recipeTablePageSize);
             if (
                 // this.dataSource !== 'xivapi' &&
                 // this.dataSource !== 'cafe-xivapi' &&

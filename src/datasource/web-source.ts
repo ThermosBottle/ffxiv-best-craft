@@ -47,6 +47,7 @@ export class WebSource {
         craftTypeId?: number,
         jobLevelMin?: number,
         jobLevelMax?: number,
+        pageSize?: number,
     ): Promise<RecipesSourceResult> {
         if (searchName === undefined) {
             searchName = '';
@@ -66,6 +67,9 @@ export class WebSource {
         }
         if (jobLevelMax !== undefined) {
             query.set('job_level_max', String(jobLevelMax));
+        }
+        if (pageSize !== undefined) {
+            query.set('page_size', String(pageSize));
         }
 
         const url =
@@ -151,6 +155,26 @@ export class WebSource {
         const query = new URLSearchParams({ recipe_id: String(recipeId) });
         const url =
             new URL('recipe_info', this.base).toString() +
+            '?' +
+            query.toString();
+        const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+        });
+        if (!resp.ok) throw resp.status;
+        return resp.json();
+    }
+
+    // batch fetch multiple recipe info in a single request
+    // no parallel fetch now
+    async recipeInfoList(recipeIds: number[]): Promise<RecipeInfo[]> {
+        if (recipeIds.length === 0) return [];
+
+        const query = new URLSearchParams({
+            recipe_ids: recipeIds.join(','),
+        });
+        const url =
+            new URL('recipe_info_batch', this.base).toString() +
             '?' +
             query.toString();
         const resp = await fetch(url, {

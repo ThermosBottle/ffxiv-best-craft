@@ -1,4 +1,4 @@
-<!-- 
+<!--
     This file is part of BestCraft.
     Copyright (C) 2026  Tnze
 
@@ -17,7 +17,7 @@
 -->
 
 <script setup lang="ts">
-import { ref, onActivated } from 'vue';
+import { computed, ref, onActivated } from 'vue';
 import {
     ElScrollbar,
     ElForm,
@@ -30,6 +30,7 @@ import {
     ElRadioButton,
     ElDialog,
     ElText,
+    ElInputNumber,
 } from 'element-plus';
 import { useFluent } from 'fluent-vue';
 import useSettingsStore, { dataSourceList } from '@/stores/settings';
@@ -57,6 +58,10 @@ var checkingUpdate = ref(false);
 var onCheckUpdateClick = async () => {};
 const licenseDialogVisible = ref(false);
 const switchLinesDialogVisible = ref(false);
+
+const MIN_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 200;
+const DEFAULT_PAGE_SIZE = 100;
 
 if (isTauri) {
     import('@tauri-apps/api/app').then(
@@ -86,6 +91,12 @@ function fixDataSourceLanguage() {
         store.dataSourceLang = dsLangAllowedList[0];
     }
 }
+
+// read & write recipeTablePageSize from store
+const recipeTablePageSize = computed({
+    get: () => store.recipeTablePageSize,
+    set: value => store.setRecipeTablePageSize(value),
+});
 </script>
 
 <template>
@@ -134,6 +145,16 @@ function fixDataSourceLanguage() {
                         </span>
                     </el-option>
                 </el-select>
+            </el-form-item>
+            <el-form-item :label="$t('page-size')">
+                <el-input-number
+                    v-model="recipeTablePageSize"
+                    :min="MIN_PAGE_SIZE"
+                    :max="MAX_PAGE_SIZE"
+                    :step="10"
+                    :precision="0"
+                    controls-position="right"
+                />
             </el-form-item>
             <!-- Data source languages -->
             <el-form-item
@@ -286,9 +307,11 @@ light = 亮
 dark = 暗
 auto = 自动
 
+page-size = 每页显示行数
+
 data-source = 数据源
 ds-local = 本地
-# ds-yyyygames = 
+# ds-yyyygames =
 ds-xivapi = Xivapi
 ds-cafe-xivapi = 咖啡 Xivapi
 ds-local-desc = 简中数据
@@ -324,9 +347,11 @@ light = 亮
 dark = 暗
 auto = 自動
 
+page-size = 每頁顯示行數
+
 data-source = 資料來源
 ds-local = 本地
-# ds-yyyygames = 
+# ds-yyyygames =
 ds-xivapi = Xivapi
 ds-cafe-xivapi = Cafe Xivapi
 ds-local-desc = 國服資料
@@ -360,6 +385,9 @@ theme = Theme
 light = Light
 dark = Dark
 auto = Auto
+
+page-size = Rows per page
+
 data-source = Data Source
 ds-local = Local
 ds-yyyygames = YYYY.GAMES
@@ -396,6 +424,9 @@ data-source = データソース
 ds-local = ローカル
 # ds-xivapi =
 # ds-cafe =
+
+page-size = ページ表示行数
+
 switch-lines = サーバの切り替え
 dslang-zh-CN = 簡体字中国語
 dslang-zh-TW = 繁体字中国語

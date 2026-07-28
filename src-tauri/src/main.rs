@@ -46,7 +46,10 @@ use app_db::{
     wks_mission_unit,
 };
 
-/// 创建新的Recipe对象，蕴含了模拟一次制作过程所必要的全部配方信息
+const DEFAULT_PAGE_SIZE: u64 = 100;
+// const MIN_PAGE_SIZE: u64 = 10;
+// const MAX_PAGE_SIZE: u64 = 200;
+
 #[tauri::command(async)]
 async fn recipe_level_table(
     rlv: u32,
@@ -144,6 +147,7 @@ async fn recipe_table(
     recipe_level: Option<i32>,
     job_level_min: Option<i32>,
     job_level_max: Option<i32>,
+    page_size: Option<u64>,
     app_state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<(Vec<RecipeInfo>, u64), String> {
@@ -216,10 +220,53 @@ async fn recipe_table(
         .column_as(recipes::Column::IsExpert, "is_expert")
         .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
         .into_model::<RecipeInfo>()
-        .paginate(db, 200);
+        .paginate(db, page_size.unwrap_or(DEFAULT_PAGE_SIZE));
     let p = paginate.num_pages().await.map_err(err_to_string)?;
     let data = paginate.fetch_page(page_id).await.map_err(err_to_string)?;
     Ok((data, p))
+}
+
+#[tauri::command(async)]
+async fn search_recipe_by_ids(
+    recipe_ids: Vec<i32>,
+    app_state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<RecipeInfo>, String> {
+    let db = app_state.get_db(app_handle).await.map_err(err_to_string)?;
+    Recipes::find()
+        .join(JoinType::InnerJoin, recipes::Relation::CraftTypes.def())
+        .join(JoinType::InnerJoin, recipes::Relation::ItemResultItem.def())
+        .join(
+            JoinType::InnerJoin,
+            recipes::Relation::RecipeLevelTables.def(),
+        )
+        .filter(recipes::Column::Id.is_in(recipe_ids))
+        .select_only()
+        .column_as(recipes::Column::Id, "id")
+        .column_as(recipes::Column::RecipeLevelId, "rlv")
+        .column_as(items::Column::Id, "item_id")
+        .column_as(items::Column::Name, "item_name")
+        .column_as(recipes::Column::ItemResultAmount, "item_amount")
+        .column_as(craft_types::Column::Name, "job")
+        .column_as(recipes::Column::DifficultyFactor, "difficulty_factor")
+        .column_as(recipes::Column::QualityFactor, "quality_factor")
+        .column_as(recipes::Column::DurabilityFactor, "durability_factor")
+        .column_as(
+            recipes::Column::MaterialQualityFactor,
+            "material_quality_factor",
+        )
+        .column_as(
+            recipes::Column::RequiredCraftsmanship,
+            "required_craftsmanship",
+        )
+        .column_as(recipes::Column::RequiredControl, "required_control")
+        .column_as(recipes::Column::CanHq, "can_hq")
+        .column_as(recipes::Column::IsExpert, "is_expert")
+        .column_as(recipes::Column::RecipeNotebookList, "recipe_notebook_list")
+        .into_model::<RecipeInfo>()
+        .all(db)
+        .await
+        .map_err(err_to_string)
 }
 
 #[tauri::command(async)]
@@ -539,7 +586,6 @@ async fn create_solver(
     Ok(())
 }
 
-/// 调用求解器
 #[tauri::command(async)]
 async fn read_solver(
     status: Status,
@@ -608,7 +654,6 @@ fn raphael_solve(
     )
 }
 
-/// 释放求解器
 #[tauri::command(async)]
 async fn destroy_solver(
     status: Status,
@@ -695,6 +740,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             recipe_level_table,
             recipe_level_table_by_job_level,
+            search_recipe_by_ids,
             new_status,
             simulate,
             simulate_one_step,

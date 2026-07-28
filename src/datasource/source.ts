@@ -32,10 +32,12 @@ export interface DataSource {
         craftTypeId?: number,
         jobLevelMin?: number,
         jobLevelMax?: number,
+        pageSize?: number,
     ): Promise<RecipesSourceResult>;
     recipesIngredients(recipeId: number): Promise<ItemWithAmount[]>;
     recipeLevelTable(rlv: number): Promise<RecipeLevel>;
     recipeLevelTablebyJobLevel?(job_level: number): Promise<RecipeLevel | null>;
+    recipeInfoList?(recipeIds: number[]): Promise<RecipeInfo[]>;
     recipeCollectableShopRefine?(
         recipeId: number,
     ): Promise<CollectablesShopRefine>;
