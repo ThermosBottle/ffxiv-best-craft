@@ -17,11 +17,12 @@
 -->
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import {
     ElButton,
     ElMessage,
     ElMessageBox,
+    ElPagination,
     ElTable,
     ElTableColumn,
 } from 'element-plus';
@@ -50,6 +51,9 @@ const recipeFavoritesStore = useRecipeFavoritesStore();
 const compactLayout = useMediaQuery('screen and (max-width: 500px)');
 
 const displayTable = ref<RecipeInfo[]>([]);
+const pagination = reactive({
+    Page: 1,
+});
 const isRecipeTableLoading = ref(false);
 const confirmDialogVisible = ref(false);
 const recipe = ref<Recipe>();
@@ -59,6 +63,27 @@ const collectability = ref<CollectablesShopRefine>();
 const stellarSteadyHandCount = ref<number>(0);
 
 let loadFavoritesRequest = 0;
+
+const pageTotal = computed(() =>
+    Math.max(
+        1,
+        Math.ceil(displayTable.value.length / settingStore.recipeTablePageSize),
+    ),
+);
+
+const pagedDisplayTable = computed(() => {
+    const pageSize = settingStore.recipeTablePageSize;
+    const start = (pagination.Page - 1) * pageSize;
+    return displayTable.value.slice(start, start + pageSize);
+});
+
+function normalizeCurrentPage() {
+    if (pagination.Page > pageTotal.value) {
+        pagination.Page = pageTotal.value;
+    } else if (pagination.Page < 1) {
+        pagination.Page = 1;
+    }
+}
 
 async function refreshFavorites() {
     if (!props.active) return;
@@ -97,6 +122,7 @@ async function refreshFavorites() {
     } finally {
         if (requestId === loadFavoritesRequest) {
             isRecipeTableLoading.value = false;
+            normalizeCurrentPage();
         }
     }
 }
@@ -121,7 +147,23 @@ watch(
 watch(
     () => [settingStore.dataSource, settingStore.dataSourceLang],
     () => {
+        pagination.Page = 1;
         refreshFavorites();
+    },
+);
+
+watch(
+    () => settingStore.recipeTablePageSize,
+    () => {
+        pagination.Page = 1;
+        normalizeCurrentPage();
+    },
+);
+
+watch(
+    () => displayTable.value.length,
+    () => {
+        normalizeCurrentPage();
     },
 );
 
@@ -244,7 +286,7 @@ async function clearAllFavorites() {
                 :element-loading-text="$t('please-wait')"
                 highlight-current-row
                 @row-click="clickRecipeRow"
-                :data="displayTable"
+                :data="pagedDisplayTable"
                 height="100%"
                 style="width: 100%"
             >
@@ -297,6 +339,12 @@ async function clearAllFavorites() {
                 />
                 <el-table-column prop="item_name" :label="$t('name')" />
             </el-table>
+            <el-pagination
+                v-if="pageTotal > 1"
+                layout="prev, pager, next"
+                v-model:current-page="pagination.Page"
+                :page-count="pageTotal"
+            />
         </div>
     </div>
 </template>
@@ -313,15 +361,27 @@ async function clearAllFavorites() {
 
 .content {
     width: 100%;
-    margin: 10px 10px;
+    flex: 1;
+    min-height: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .clear-button {
+    width: clamp(100px, 15%, 200px);
     flex: 0 0 auto;
 }
 
 .el-table {
+    flex: 1;
+    min-height: 0;
     user-select: none;
+    --el-fill-color-blank: transparent;
+}
+
+.el-pagination {
+    justify-content: center;
     --el-fill-color-blank: transparent;
 }
 </style>
