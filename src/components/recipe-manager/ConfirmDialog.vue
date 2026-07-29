@@ -1,4 +1,4 @@
-<!-- 
+<!--
     This file is part of BestCraft.
     Copyright (C) 2026  Tnze
 
@@ -30,15 +30,17 @@ import {
     CollectablesShopRefine,
     Conditions,
     Item,
+    Jobs,
     newRecipe,
     Recipe,
     RecipeInfo,
 } from '@/libs/Craft';
-import { selectRecipe } from './common';
+import { recipeInfoToJob, selectRecipe } from './common';
 import { useMediaQuery } from '@vueuse/core';
 import { useRouter } from 'vue-router';
 import { computed, onWatcherCleanup, ref, watch } from 'vue';
 import useSettingStore from '@/stores/settings';
+import useGearsetsStore from '@/stores/gearsets';
 import { useFluent } from 'fluent-vue';
 import Condition from '../designer/Condition.vue';
 
@@ -51,6 +53,7 @@ const props = defineProps<{
 const router = useRouter();
 const { $t } = useFluent();
 const settingsStore = useSettingStore();
+const gearsetsStore = useGearsetsStore();
 const visible = defineModel<boolean>({ required: true });
 const rawRecipe = defineModel<Recipe>('recipe', { required: true });
 const compactLayout = useMediaQuery('screen and (max-width: 500px)');
@@ -69,6 +72,28 @@ const recipe = computed(() =>
     isDynRecipe.value && dynRecipe.value != undefined
         ? dynRecipe.value
         : rawRecipe.value,
+);
+const currentJob = computed<Jobs | undefined>(() =>
+    recipeInfoToJob(props.recipeInfo.craft_type_id, props.recipeInfo.job),
+);
+const currentJobGearsetLevel = computed<number>(() => {
+    const job = currentJob.value;
+    if (job == undefined) return gearsetsStore.default.value.level;
+
+    const gearset = gearsetsStore.gearsets.find(
+        (v, i) => i != 0 && v.compatibleJobs.includes(job),
+    );
+    return (gearset ?? gearsetsStore.default).value.level;
+});
+
+watch(
+    [visible, isDynRecipe, () => props.recipeInfo.id],
+    ([visible, isDynRecipe]) => {
+        if (visible && isDynRecipe) {
+            dynRecipeLevel.value = currentJobGearsetLevel.value;
+        }
+    },
+    { immediate: true },
 );
 
 async function loadDynRecipe(
@@ -131,6 +156,7 @@ async function confirm(mode: 'simulator' | 'designer') {
         props.collectability,
         itemInfo,
         props.recipeInfo.job,
+        props.recipeInfo.craft_type_id,
         mode == 'simulator',
         props.stellarSteadyHandCount,
     );

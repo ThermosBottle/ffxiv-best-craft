@@ -404,6 +404,9 @@ export interface RecipeInfo {
     item_id: number;
     item_name: string;
     item_amount?: number;
+    // Legacy online API responses may omit this field. Local Tauri and the
+    // Rust server expose it directly from Recipes.CraftTypeId.
+    craft_type_id?: number;
     job: string;
 
     difficulty_factor: number;
