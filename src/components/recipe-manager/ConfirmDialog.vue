@@ -1,6 +1,6 @@
 <!--
     This file is part of BestCraft.
-    Copyright (C) 2026  Tnze
+    Copyright (C) 2026  Tnze & ThermosBottle
 
     BestCraft is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published
@@ -74,7 +74,7 @@ const recipe = computed(() =>
         : rawRecipe.value,
 );
 const currentJob = computed<Jobs | undefined>(() =>
-    recipeInfoToJob(props.recipeInfo.craft_type_id, props.recipeInfo.job),
+    recipeInfoToJob(props.recipeInfo.craft_type_id),
 );
 const currentJobGearsetLevel = computed<number>(() => {
     const job = currentJob.value;
@@ -155,7 +155,6 @@ async function confirm(mode: 'simulator' | 'designer') {
         props.recipeInfo,
         props.collectability,
         itemInfo,
-        props.recipeInfo.job,
         props.recipeInfo.craft_type_id,
         mode == 'simulator',
         props.stellarSteadyHandCount,

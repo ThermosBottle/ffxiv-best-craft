@@ -1,0 +1,2 @@
+[lang.zh-CN]
+database = 'sqlite://src-tauri/assets/xiv.db?mode=ro'

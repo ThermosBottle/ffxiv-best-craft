@@ -136,7 +136,6 @@ function confirm(simulatorMode: boolean) {
         requirements, // requirements
         undefined, // collectability
         itemInfo, // item
-        undefined, // craftType
         undefined, // craftTypeId
         simulatorMode, // simulatorMode
         3, // stellarSteadyHandCount

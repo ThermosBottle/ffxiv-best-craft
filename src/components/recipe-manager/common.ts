@@ -36,67 +36,6 @@ export const craftTypeIdToJobMap: Record<number, Jobs> = {
     7: Jobs.Culinarian,
 };
 
-// Fallback for online API responses that don't provide
-// `craft_type_id` now. So we have to use `craftTypeIdToJob` /
-// `recipeInfoToJob(craft_type_id, ...)` and treat names as display data only.
-const legacyCraftTypeNameToJobMap: Record<string, Jobs> = {
-    // zh-CN
-    木工: Jobs.Carpenter,
-    锻冶: Jobs.Blacksmith,
-    铸甲: Jobs.Armorer,
-    雕金: Jobs.Goldsmith,
-    制革: Jobs.Leatherworker,
-    裁缝: Jobs.Weaver,
-    炼金: Jobs.Alchemist,
-    烹调: Jobs.Culinarian,
-
-    // zh-TW
-    鍛造: Jobs.Blacksmith,
-    金工: Jobs.Goldsmith,
-    皮革: Jobs.Leatherworker,
-    裁縫: Jobs.Weaver,
-    鍊金: Jobs.Alchemist,
-    烹調: Jobs.Culinarian,
-
-    // ja-JP
-    鍛冶: Jobs.Blacksmith,
-    甲冑: Jobs.Armorer,
-    彫金: Jobs.Goldsmith,
-    革細工: Jobs.Leatherworker,
-    錬金: Jobs.Alchemist,
-    調理: Jobs.Culinarian,
-
-    // en-US
-    Woodworking: Jobs.Carpenter,
-    Smithing: Jobs.Blacksmith,
-    Armorcraft: Jobs.Armorer,
-    Goldsmithing: Jobs.Goldsmith,
-    Leatherworking: Jobs.Leatherworker,
-    Clothcraft: Jobs.Weaver,
-    Alchemy: Jobs.Alchemist,
-    Cooking: Jobs.Culinarian,
-
-    // de-DE
-    Zimmerer: Jobs.Carpenter,
-    Grobschmied: Jobs.Blacksmith,
-    Plattner: Jobs.Armorer,
-    Goldschmied: Jobs.Goldsmith,
-    Gerber: Jobs.Leatherworker,
-    Weber: Jobs.Weaver,
-    Alchemist: Jobs.Alchemist,
-    Gourmet: Jobs.Culinarian,
-
-    // fr-FR
-    Menuiserie: Jobs.Carpenter,
-    Métallurgie: Jobs.Blacksmith,
-    Armurerie: Jobs.Armorer,
-    Orfèvrerie: Jobs.Goldsmith,
-    Tannerie: Jobs.Leatherworker,
-    Couture: Jobs.Weaver,
-    Alchimie: Jobs.Alchemist,
-    Cuisine: Jobs.Culinarian,
-};
-
 export function craftTypeIdToJob(
     craftTypeId: number | undefined,
 ): Jobs | undefined {
@@ -106,12 +45,8 @@ export function craftTypeIdToJob(
 }
 export function recipeInfoToJob(
     craftTypeId: number | undefined,
-    craftTypeName: string | undefined,
 ): Jobs | undefined {
-    return (
-        craftTypeIdToJob(craftTypeId) ??
-        legacyCraftTypeNameToJobMap[craftTypeName ?? '']
-    );
+    return craftTypeIdToJob(craftTypeId);
 }
 
 export const selectRecipe = (
@@ -121,13 +56,12 @@ export const selectRecipe = (
     requirements: RecipeRequirements,
     collectability: CollectablesShopRefine | undefined,
     item: Item,
-    craftType: string | undefined,
     craftTypeId: number | undefined,
     simulatorMode: boolean,
     stellarSteadyHandCount: number,
 ) => {
     designerStore.selectRecipe({
-        job: recipeInfoToJob(craftTypeId, craftType),
+        job: recipeInfoToJob(craftTypeId),
         item,
         recipe,
         recipeId,
